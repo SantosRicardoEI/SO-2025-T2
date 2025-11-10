@@ -5,6 +5,9 @@
 #ifndef VIRTMEM_H
 #define VIRTMEM_H
 
+extern vm_policy_t current_policy;
+
+
 #include "virtmem_types.h"
 #include "pcb.h"
 
@@ -27,6 +30,11 @@ int swap_out(swap_hash_t *swap, frame_desc_t *fd);
 int swap_in(swap_hash_t *swap, frame_desc_t *fd);
 
 int page_eviction(frame_table_t *frame_table, swap_hash_t *swap, int32_t min_pages_threshold);
-pte_t *page_request(pcb_t *pcb, frame_table_t *frame_table, swap_hash_t *swap, int vfn);
+pte_t *page_request(uint32_t current_time_ms,pcb_t *pcb, frame_table_t *frame_table, swap_hash_t *swap, int vfn);
+
+int random_eviction(frame_table_t *frame_table);
+int clock_eviction(frame_table_t *frame_table);
+int nru_eviction(frame_table_t *frame_table);
+
 
 #endif //VIRTMEM_H

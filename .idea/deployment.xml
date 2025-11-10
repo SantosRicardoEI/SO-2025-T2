@@ -2,10 +2,10 @@
 <project version="4">
   <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="VMOS (cb426fea-60b5-49a6-8d7a-155ea1b671f4)">
+      <paths name="Remote Host (e7d50368-de0a-40f2-b2a2-85e03788a5d0)">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/trabalho2" local="$PROJECT_DIR$" />
+            <mapping deploy="Aula4" local="$PROJECT_DIR$" />
           </mappings>
           <excludedPaths>
             <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-debug" />

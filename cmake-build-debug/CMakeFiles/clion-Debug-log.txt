@@ -1,0 +1,4 @@
+/usr/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" -S /home/aluno/Aula4 -B /home/aluno/Aula4/cmake-build-debug
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/aluno/Aula4/cmake-build-debug

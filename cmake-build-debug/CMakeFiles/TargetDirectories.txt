@@ -1,0 +1,4 @@
+/home/aluno/tmp/so-2025-26-trabalho2-t2-ricardo/cmake-build-debug/CMakeFiles/ossim.dir
+/home/aluno/tmp/so-2025-26-trabalho2-t2-ricardo/cmake-build-debug/CMakeFiles/app-io.dir
+/home/aluno/tmp/so-2025-26-trabalho2-t2-ricardo/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/aluno/tmp/so-2025-26-trabalho2-t2-ricardo/cmake-build-debug/CMakeFiles/rebuild_cache.dir

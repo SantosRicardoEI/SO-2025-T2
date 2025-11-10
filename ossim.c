@@ -7,9 +7,18 @@
 #include <stdlib.h>
 #include "scheduler.h"
 #include "virtmem.h"
+#include <time.h>
+#include "ossim.h"
 
 #include "msg.h"
 #include "queue.h"
+
+// Contadores globais de estatísticas (reiniciar OSSIM para resetar)
+int total_page_faults = 0;
+int total_swaps_in = 0;
+int total_swaps_out = 0;
+int total_page_accesses = 0;
+int access_counter = 0;
 
 
 static volatile sig_atomic_t keep_running = 1;
@@ -77,6 +86,7 @@ int parse_args(int argc, char *argv[], int *pages, int *frames, int *threshold) 
 }
 
 int main(int argc, char *argv[]) {
+    clock_t start_time = clock();
     int num_pages = 20;
     int num_frames = 30;
     int min_pages_threshold = 4;
@@ -105,7 +115,7 @@ int main(int argc, char *argv[]) {
     // We only have a single CPU that is a pointer to the actively running PCB on the CPU
     pcb_t *CPU = NULL;
 
-    frame_table_t *frame_table = create_frame_table(num_pages);
+    frame_table_t *frame_table = create_frame_table(num_frames);
     swap_hash_t swap = {.last_swap_time_ms = 0, .num_swapped = 0, .pages = NULL};
 
     int server_fd = setup_server_socket(SOCKET_PATH);
@@ -115,6 +125,7 @@ int main(int argc, char *argv[]) {
     }
     printf("Scheduler server listening on %s...\n", SOCKET_PATH);
     uint32_t current_time_ms = 0;
+
     while (keep_running) {
         // Check for new connections and/or instructions
         check_new_commands(&command_queue, &blocked_queue, &ready_queue, server_fd, current_time_ms);
@@ -132,6 +143,7 @@ int main(int argc, char *argv[]) {
         // The scheduler handles the READY queue
         if (scheduler(current_time_ms, &ready_queue, &command_queue, &CPU) > 0 && CPU) {
             for (uint32_t i = 0; i < CPU->requested_pages.count; i++) {
+                total_page_accesses++;
                 int vfn = CPU->requested_pages.ids[i];
                 int is_dirty = 0;
 
@@ -141,11 +153,15 @@ int main(int argc, char *argv[]) {
                     vfn = -vfn;
                 }
                 page_eviction(frame_table, &swap, min_pages_threshold);
-                pte_t *vp = page_request(CPU, frame_table, &swap, vfn);
+
+                pte_t *vp = page_request(current_time_ms,CPU, frame_table, &swap, vfn);
+                vp->last_accessed = current_time_ms;
+
                 if (!vp) {
                     printf("ERROR: Cannot request a page %d for process %d\n", vfn, CPU->pid);
                     continue;
                 }
+
                 vp->referenced = 1;
                 vp->present = 1;
                 vp->last_accessed = current_time_ms;
@@ -162,5 +178,23 @@ int main(int argc, char *argv[]) {
     close(server_fd);
     unlink(SOCKET_PATH);
     printf("[Scheduler] Shutdown complete.\n");
+
+    double fault_rate = (total_page_accesses > 0)
+    ? (100.0 * total_page_faults / total_page_accesses)
+    : 0.0;
+    printf("\n================== Dados de execução do OSSIM =================\n");
+    printf("Algoritmo utilizado: %s\n", policy_to_string(current_policy));
+    printf("Páginas: %d, Frames: %d, Threshold: %d\n", num_pages, num_frames, min_pages_threshold);
+    printf("Acessos a Páginas: %d\n", total_page_accesses);
+    printf("Page Faults: %d\n", total_page_faults);
+    printf("Taxa de Page Faults: %.2f%%\n", fault_rate);
+    printf("Swaps In: %d\n", total_swaps_in);
+    printf("Swaps Out: %d\n", total_swaps_out);
+    printf("Evictions: %d\n", total_swaps_out);
+
+    clock_t end_time = clock();
+    double elapsed_seconds = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    printf("Tempo total de execução (simulador): %.3f segundos\n", elapsed_seconds);
+
     return 0;
 }
