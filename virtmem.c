@@ -7,12 +7,20 @@
 #include "ossim.h"
 
 #include <stdio.h>
-#include <stdlib.h>   // malloc, calloc, free
+#include <stdlib.h>
 #include <stdint.h>
 
 // --pages 40 --frames 2 --threshold 1
 
-vm_policy_t current_policy = VM_RANDOM;
+vm_policy_t current_policy = VM_NRU;
+
+// Usados com o X-5.csv.csv
+// --pages 20 --frames 2 --threshold 1
+// --pages 20 --frames 3 --threshold 1
+// --pages 20 --frames 4 --threshold 1
+// --pages 30 --frames 3 --threshold 1
+// --pages 20 --frames 10 --threshold 1
+
 
 const char *policy_to_string(vm_policy_t policy) {
     switch (policy) {
@@ -20,6 +28,7 @@ const char *policy_to_string(vm_policy_t policy) {
         case VM_LRU:  return "LRU";
         case VM_RANDOM: return "RANDOM";
         case VM_NRU:  return "NRU";
+        case VM_CLOCK: return "CLOCK";
         default:      return "DESCONHECIDO";
     }
 }
@@ -279,14 +288,19 @@ int swap_in(swap_hash_t *swap, frame_desc_t *fd) {
  * @return Pointer to the page table entry of the requested page, or NULL on failure
  */
 pte_t *page_request(uint32_t current_time_ms,pcb_t *pcb, frame_table_t *frame_table, swap_hash_t *swap, int vfn) {
+    total_page_accesses++;
     printf("Requesting page %d for process %d\n", vfn, pcb->pid);
     pte_t *vp = find_page(&pcb->page_table, vfn);
+
     if (is_active(vp)) {
         // Page is present in RAM
         printf("Page %d is active in RAM, just bookkeeping\n", vfn);
+        vp->referenced = 1;
+        vp->last_accessed = current_time_ms;
         return vp;
     }
     if (is_valid(vp)) {
+        total_page_faults++;
         // Page is swapped out
         // Assume there is a free frame, so get one
         printf("Swap in page %d for process %d\n", vfn, pcb->pid);
@@ -302,8 +316,8 @@ pte_t *page_request(uint32_t current_time_ms,pcb_t *pcb, frame_table_t *frame_ta
         return vp;
     }
     // Page not valid, need to allocate
-    printf("Allocating page %d for process %d\n", vfn, pcb->pid);
     total_page_faults++;
+    printf("Allocating page %d for process %d\n", vfn, pcb->pid);
     int32_t next_frame = pop_free_frame(&frame_table->free_stack);
     frame_desc_t *fd = &frame_table->frames[next_frame];
     vp->frame_id = next_frame;
@@ -311,7 +325,8 @@ pte_t *page_request(uint32_t current_time_ms,pcb_t *pcb, frame_table_t *frame_ta
     fd->pid = pcb->pid;
     fd->vfn = vfn;
     push_fifo_eviction(&frame_table->eviction_order, next_frame);
-
+    vp->referenced = 1;
+    vp->last_accessed = current_time_ms;
     return vp;
 }
 
@@ -350,7 +365,7 @@ int page_eviction(frame_table_t *frame_table, swap_hash_t *swap, int32_t min_pag
                 evict_frame = nru_eviction(frame_table);
                 break;
             case VM_LRU:
-                evict_frame = clock_eviction(frame_table);
+                evict_frame = lru_eviction(frame_table);
                 break;
             case VM_CLOCK:
                 evict_frame = clock_eviction(frame_table);
@@ -467,4 +482,25 @@ int nru_eviction(frame_table_t *frame_table) {
         }
     }
     return melhor_candidato;
+}
+
+int lru_eviction(frame_table_t *frame_table) {
+    int melhor = INVALID_FRAME;
+    uint32_t oldest = UINT32_MAX;
+
+    for (int i = 0; i < frame_table->no_frames; i++) {
+        frame_desc_t *fd = &frame_table->frames[i];
+        pte_t *vp = fd->vp;
+
+        if (!vp || !vp->present) {
+            continue;
+        }
+
+        if (vp->last_accessed < oldest) {
+            oldest = vp->last_accessed;
+            melhor = i;
+        }
+    }
+
+    return melhor;
 }

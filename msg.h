@@ -18,7 +18,7 @@ static const char PROCESS_REQUEST_STRINGS[][10] = {
     "RUN",
     "BLOCK",
     "ACK",
-    "DONE"
+    "DONE",
 };
 
 // Define the types of requests a process can make to the scheduler

@@ -86,7 +86,7 @@ int parse_args(int argc, char *argv[], int *pages, int *frames, int *threshold) 
 }
 
 int main(int argc, char *argv[]) {
-    clock_t start_time = clock();
+
     int num_pages = 20;
     int num_frames = 30;
     int min_pages_threshold = 4;
@@ -143,7 +143,6 @@ int main(int argc, char *argv[]) {
         // The scheduler handles the READY queue
         if (scheduler(current_time_ms, &ready_queue, &command_queue, &CPU) > 0 && CPU) {
             for (uint32_t i = 0; i < CPU->requested_pages.count; i++) {
-                total_page_accesses++;
                 int vfn = CPU->requested_pages.ids[i];
                 int is_dirty = 0;
 
@@ -161,7 +160,6 @@ int main(int argc, char *argv[]) {
                     printf("ERROR: Cannot request a page %d for process %d\n", vfn, CPU->pid);
                     continue;
                 }
-
                 vp->referenced = 1;
                 vp->present = 1;
                 vp->last_accessed = current_time_ms;
@@ -183,18 +181,18 @@ int main(int argc, char *argv[]) {
     ? (100.0 * total_page_faults / total_page_accesses)
     : 0.0;
     printf("\n================== Dados de execução do OSSIM =================\n");
-    printf("Algoritmo utilizado: %s\n", policy_to_string(current_policy));
     printf("Páginas: %d, Frames: %d, Threshold: %d\n", num_pages, num_frames, min_pages_threshold);
     printf("Acessos a Páginas: %d\n", total_page_accesses);
-    printf("Page Faults: %d\n", total_page_faults);
-    printf("Taxa de Page Faults: %.2f%%\n", fault_rate);
-    printf("Swaps In: %d\n", total_swaps_in);
-    printf("Swaps Out: %d\n", total_swaps_out);
     printf("Evictions: %d\n", total_swaps_out);
 
-    clock_t end_time = clock();
-    double elapsed_seconds = (double)(end_time - start_time) / CLOCKS_PER_SEC;
-    printf("Tempo total de execução (simulador): %.3f segundos\n", elapsed_seconds);
+    printf("");
+    printf("Algoritmo utilizado: %s\n", policy_to_string(current_policy));
+    printf("Page Faults: %d\n", total_page_faults);
+    printf("Swaps In: %d\n", total_swaps_in);
+    printf("Swaps Out: %d\n", total_swaps_out);
+    printf("Taxa de Page Faults: %.2f%%\n", fault_rate);
+
+
 
     return 0;
 }

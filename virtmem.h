@@ -35,6 +35,7 @@ pte_t *page_request(uint32_t current_time_ms,pcb_t *pcb, frame_table_t *frame_ta
 int random_eviction(frame_table_t *frame_table);
 int clock_eviction(frame_table_t *frame_table);
 int nru_eviction(frame_table_t *frame_table);
+int lru_eviction(frame_table_t *frame_table);
 
 
 #endif //VIRTMEM_H
