@@ -412,7 +412,9 @@ int page_eviction(frame_table_t *frame_table, swap_hash_t *swap, int32_t min_pag
     return 0;
 }
 
+
 int random_eviction(frame_table_t *frame_table) {
+    // Verifico se há frames "aptos" a serem removidos (para não ficar infinitamente á procura)
     int tem_candidatos = 0;
     for (int i = 0; i < frame_table->no_frames; i++) {
         if (frame_table->frames[i].vp != NULL && frame_table->frames[i].vp->present == 1) {
@@ -425,7 +427,9 @@ int random_eviction(frame_table_t *frame_table) {
         return INVALID_FRAME;
     }
 
+    // Escolho uma vitima com id aleatorio dentro dos IDs possiveis
     int id_vitima = rand() % frame_table->no_frames;
+    // Se vp nao está ativa ou conteudo da vp já nao está na ram, gero outra vitima
     while (frame_table->frames[id_vitima].vp == NULL || frame_table->frames[id_vitima].vp->present == 0) {
         id_vitima = rand() % frame_table->no_frames;
     }
@@ -437,46 +441,68 @@ int clock_eviction(frame_table_t *frame_table) {
     frame_desc_t *frame_atual;
     pte_t *pagina_atual;
 
+    // Faço apenas duas voltas
     for (int tries = 0; tries < 2 * frame_table->no_frames; tries++) {
         frame_atual = &frame_table->frames[clock_pointer];
         pagina_atual = frame_atual->vp;
 
+        // Se esta pagina está presente
         if (pagina_atual != NULL && pagina_atual->present) {
+            // Se não foi usada vai ser esta para remover
             if (pagina_atual->referenced == 0) {
                 return clock_pointer;
             } else {
+                // Se foi usada marco como não usada
+                // Assim na proxima volta se continuar nao usada vai continuar a zero e pode ser esoclhida
                 pagina_atual->referenced = 0;
             }
         }
 
+        // Avanço o clock_pointer para o proximo (no_frames) (no ultimo volta ao zero)
         clock_pointer = (clock_pointer + 1) % frame_table->no_frames;
     }
     return INVALID_FRAME;
 }
 
 int classificacao_nru(pte_t *pagina_virtual) {
+    // referenced | dirty | classificacao
+    //     0      |   0   |      0
+    //     0      |   1   |      1
+    //     1      |   0   |      2
+    //     1      |   1   |      3
     return (pagina_virtual->referenced ? 2 : 0) + (pagina_virtual->dirty ? 1 : 0);
 }
 
 int nru_eviction(frame_table_t *frame_table) {
     frame_desc_t *frame_atual;
     pte_t *pagina_atual;
+
+    // A melhor classificação é uma maior (impossivel)
     int melhor_class = 4;
+    // Ainda nao tenho melhor candidato
     int melhor_candidato = INVALID_FRAME;
 
+    // Percorrendo todos os frames
     for (int i = 0; i < frame_table->no_frames; i++) {
+        // Acedo á sua vp
         frame_atual = &frame_table->frames[i];
         pagina_atual = frame_atual->vp;
 
+        // Se nao existe ou já nao está presente, next
         if (!pagina_atual || !pagina_atual->present) {
             continue;
         }
 
+        // Atribuo uma classificaçao a esta pagina
         int classe = classificacao_nru(pagina_atual);
+        // Se esta classificaçao é menor:
         if (classe < melhor_class) {
+            // esta classific. é a nova melhor
             melhor_class = classe;
+            // este é o novo melhor candidato
             melhor_candidato = i;
             if (classe == 0) {
+                // Estou a devolver o primeiro que encontro com a maior classif. (0)
                 return i;
             }
         }
@@ -485,22 +511,29 @@ int nru_eviction(frame_table_t *frame_table) {
 }
 
 int lru_eviction(frame_table_t *frame_table) {
+    // Ainda nao tenho um melhor
     int melhor = INVALID_FRAME;
-    uint32_t oldest = UINT32_MAX;
 
+    // O com o acesso mais recente deve estar o maximo recente possivel
+    uint32_t oldest_access_time = UINT32_MAX;
+
+    // Para cada frame
     for (int i = 0; i < frame_table->no_frames; i++) {
+        // Acedo á sua vp
         frame_desc_t *fd = &frame_table->frames[i];
         pte_t *vp = fd->vp;
 
+        // Se vp nao está ativa ou presente, next
         if (!vp || !vp->present) {
             continue;
         }
-
-        if (vp->last_accessed < oldest) {
-            oldest = vp->last_accessed;
+        // Se esta foi acedida num tempo anterior ao oldest_acces_time
+        if (vp->last_accessed < oldest_access_time) {
+            // este é o novo oldest_access_time
+            oldest_access_time = vp->last_accessed;
+            // este é o novo melhor
             melhor = i;
         }
     }
-
     return melhor;
 }
