@@ -514,7 +514,7 @@ int lru_eviction(frame_table_t *frame_table) {
     // Ainda nao tenho um melhor
     int melhor = INVALID_FRAME;
 
-    // O com o acesso mais recente deve estar o maximo recente possivel
+    // Começo com o maior valor possível para encontrar o acesso mais antigo
     uint32_t oldest_access_time = UINT32_MAX;
 
     // Para cada frame
